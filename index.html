@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>High Budget Thanksgiving — Sign Up</title>
+<meta name="robots" content="noindex, nofollow">
+<meta property="og:title" content="High Budget Thanksgiving">
+<meta property="og:description" content="Thanksgiving Eve · Wed Nov 25 · Arrivals from 7pm, dinner at 9. Claim what you're bringing.">
+<meta property="og:image" content="header.jpg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0b0a08; --card:#16130e; --line:#3a2f1c; --gold:#e3bf6a; --gold-2:#f6dc95;
+    --text:#f3ede1; --muted:#a99f8c; --green:#2f8a5c; --err:#e07a6a;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--text);font-family:Inter,system-ui,sans-serif}
+  .hero{width:100%;display:block;max-height:70vh;object-fit:cover;object-position:center 30%}
+  main{max-width:640px;margin:0 auto;padding:24px 18px 64px}
+  h1{font-family:"Playfair Display",serif;font-weight:700;font-size:30px;margin:4px 0 6px;
+     background:linear-gradient(180deg,var(--gold-2),var(--gold));-webkit-background-clip:text;background-clip:text;color:transparent;text-align:center}
+  .when{text-align:center;color:var(--text);font-size:16px;line-height:1.6;margin:0 0 6px}
+  .when b{color:var(--gold)}
+  .sub{text-align:center;color:var(--muted);font-size:14px;margin:0 0 26px}
+  .rule{height:1px;background:linear-gradient(90deg,transparent,var(--gold),transparent);margin:22px 0}
+  .item{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;margin:0 0 12px}
+  .item.taken{opacity:.72}
+  .row{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+  .label{font-family:"Playfair Display",serif;font-size:19px;font-weight:500}
+  .detail{color:var(--gold);font-size:13px;white-space:nowrap}
+  .claimed{margin-top:8px;color:var(--muted);font-size:14px}
+  .claimed b{color:var(--text)}
+  .note{color:var(--muted);font-style:italic}
+  form{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
+  input{flex:1 1 160px;min-width:0;background:#0f0d0a;border:1px solid var(--line);color:var(--text);
+        border-radius:10px;padding:11px 12px;font:inherit;font-size:16px}
+  input:focus{outline:none;border-color:var(--gold)}
+  input.note-in{flex-basis:100%}
+  button{background:linear-gradient(180deg,var(--gold-2),var(--gold));color:#1a1408;border:0;border-radius:10px;
+         padding:11px 18px;font:inherit;font-weight:600;font-size:15px;cursor:pointer}
+  button:disabled{opacity:.5}
+  .msg{font-size:13px;margin-top:8px;color:var(--err)}
+  .ok{color:var(--green)}
+  .status{text-align:center;color:var(--muted);font-size:14px;margin:20px 0}
+  footer{text-align:center;color:var(--muted);font-size:12px;margin-top:30px}
+</style>
+</head>
+<body>
+<img class="hero" src="header.jpg" alt="High Budget Thanksgiving — Rocky and Khoa">
+<main>
+  <h1>Thanksgiving Eve</h1>
+  <p class="when"><b>Wednesday, November 25</b><br>Arrivals from 7pm · Dinner at 9</p>
+  <p class="sub">Pick one thing to bring. Just type your name and tap Claim.</p>
+  <div class="rule"></div>
+  <div id="list"><p class="status">Loading…</p></div>
+  <footer>Taken items show who's bringing them. Need to change yours? Text Rocky.</footer>
+</main>
+<script>
+const URL_BASE = "https://rgyatjtmgwayadwxjtax.supabase.co/rest/v1";
+const KEY = "sb_publishable_TN0Sag9talZp19ZqHsp2gg_dzBAr6bw";
+const H = { apikey: KEY, Authorization: "Bearer " + KEY };
+const list = document.getElementById("list");
+let lastName = "";
+try { lastName = localStorage.getItem("potluckName") || ""; } catch(e) {}
+
+function esc(s){ return String(s ?? "").replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+async function load(){
+  try{
+    const [items, signups] = await Promise.all([
+      fetch(URL_BASE + "/potluck_items?select=id,label,detail&order=id", {headers:H}).then(r => { if(!r.ok) throw 0; return r.json(); }),
+      fetch(URL_BASE + "/potluck_signups?select=item_id,guest_name,note", {headers:H}).then(r => { if(!r.ok) throw 0; return r.json(); })
+    ]);
+    const byItem = Object.fromEntries(signups.map(s => [s.item_id, s]));
+    list.innerHTML = items.map(it => {
+      const s = byItem[it.id];
+      const head = `<div class="row"><span class="label">${esc(it.label)}</span>${it.detail ? `<span class="detail">${esc(it.detail)}</span>` : ""}</div>`;
+      if (s) {
+        return `<div class="item taken">${head}<div class="claimed">✓ <b>${esc(s.guest_name)}</b> is bringing this${s.note ? ` · <span class="note">${esc(s.note)}</span>` : ""}</div></div>`;
+      }
+      return `<div class="item">${head}
+        <form data-id="${it.id}">
+          <input name="name" placeholder="Your name" maxlength="60" autocomplete="name" value="${esc(lastName)}" required>
+          <button type="submit">Claim</button>
+          <input class="note-in" name="note" placeholder="Note (optional)" maxlength="140">
+        </form><div class="msg"></div></div>`;
+    }).join("");
+    list.querySelectorAll("form").forEach(f => f.addEventListener("submit", claim));
+  }catch(e){
+    list.innerHTML = `<p class="status">Couldn't load the list. Check your connection and refresh.</p>`;
+  }
+}
+
+async function claim(ev){
+  ev.preventDefault();
+  const f = ev.currentTarget, btn = f.querySelector("button"), msg = f.parentElement.querySelector(".msg");
+  const name = f.name.value.trim(), note = f.note.value.trim();
+  if(!name){ msg.textContent = "Please add your name."; return; }
+  btn.disabled = true; msg.textContent = "";
+  try{
+    const r = await fetch(URL_BASE + "/potluck_signups", {
+      method:"POST",
+      headers:{...H, "Content-Type":"application/json", Prefer:"return=minimal"},
+      body: JSON.stringify({ item_id:Number(f.dataset.id), guest_name:name, note: note || null })
+    });
+    if(r.status === 409){ msg.textContent = "Someone just claimed this one — pick another!"; await load(); return; }
+    if(!r.ok) throw 0;
+    try { localStorage.setItem("potluckName", name); } catch(e) {}
+    lastName = name;
+    await load();
+  }catch(e){
+    msg.textContent = "That didn't save. Try again.";
+    btn.disabled = false;
+  }
+}
+load();
+</script>
+</body>
+</html>
